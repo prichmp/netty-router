@@ -29,7 +29,7 @@ RouterHandler routerHandler = new RouterHandler(router);
 routerHandler.takePipeline(channel.pipeline());
 ```
 
-# Patter definition
+# Pattern definition
 
 In netty-router, A PATTERN is descibing both of path information and target ChannelHandler to execute.
 
