@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentMap;
 @ChannelHandler.Sharable
 public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
-    private final HttpRouter router;
+    private final HttpRouter<ChannelHandler> router;
 
     private final ChannelHandler exceptionHandler;
 
@@ -49,7 +49,7 @@ public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
     private Logging logger = new Logging(this);
 
-    public RouterHandler(HttpRouter router, ChannelHandler exceptionHandler) {
+    public RouterHandler(HttpRouter<ChannelHandler> router, ChannelHandler exceptionHandler) {
         super();
         this.router = router;
         this.exceptionHandler = exceptionHandler;
@@ -82,9 +82,17 @@ public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
         final QueryStringDecoder qsd = new QueryStringDecoder(msg.uri());
         final Routed<ChannelHandler> routed = this.router.route(msg.method(), qsd.path());
         if (routed == null) {
-            throw new NotFoundException();
+            throw new NotFoundException(qsd.path());
         }
-        this.channelForward(ctx, routed.getTarget(), new HttpHandlerRouted(routed, msg));
+        try {
+            this.channelForward(ctx, routed.getTarget(), new HttpHandlerRouted(routed, msg));
+        } catch (ClassCastException e) {
+            if (!(routed.getTarget() instanceof ChannelHandler)) {
+                throw new UnsupportedTargetTypeException(ChannelHandler.class, routed.getTarget(), RouterHandler.class);
+            } else {
+                throw e;
+            }
+        }
     }
 
     private void channelForward(ChannelHandlerContext ctx, ChannelHandler nextHandler, Object msg) {
